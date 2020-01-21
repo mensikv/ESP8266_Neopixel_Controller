@@ -96,4 +96,5 @@ You can use button clicks to set color, start an effect or turn Neopixels off. T
 ## STL for case
 In the folder `stl` you will find `*.stl` files for your 3D printer, so you can print nice case for this project.
 More information about the case and photos can be found on [Thingiverse](https://www.thingiverse.com/thing:4118976).
+
 If you happen to have [Andonstar ADSM201 microscope](https://www.aliexpress.com/item/32614052280.html?spm=2114.12010612.8148356.5.1d8e66adaiGyX6), you will find there a mount for this project to bring more light to yout microscope sessions.
