@@ -2,15 +2,15 @@
   ####
   ## ESP8266 Neopixel Controller
   ####
-  I have designed it for ESP01 module, but you can use any ESP8266 board.
-  ESP01 Arduino IDE setting:
+  I have designed it for ESP-01S module, but you can use any ESP8266 board.
+  ESP-01S Arduino IDE setting:
     Board: Generic ESP8266 Module
     Flash size: 1M (128k SPIFFS)
     Flash Mode: QIO
     Reset method: no dtr, no_sync
   When you want to erase EEPROM: Erase Flash: All Flash Contents
 
-  upload code a then upload files
+  upload code and then upload files
 
   use ESP8266 Sketch Data Upload to upload files to ESP8266 SPIFFS: // https://github.com/esp8266/arduino-esp8266fs-plugin
     data\bootstrap.min.css.gz
@@ -30,7 +30,7 @@
     FastLed 3.3
     WifiManages 0.15.0-beta
     PubSubClient 2.7
-    you should increase MQTT_MAX_PACKET_SIZE in PubSubClient.h for 5 irCodes is 512 sufficient
+    you should increase MQTT_MAX_PACKET_SIZE in PubSubClient.h for 10 colors is 512 sufficient
       #define MQTT_MAX_PACKET_SIZE 512
 
   REST API:
@@ -88,29 +88,29 @@
 #define COLOR_COUNT     10             // maximum number of saved colors
 
 #define NUM_LEDS                   16
-//#define LED_DATA_PIN               D2
-#define LED_DATA_PIN               2  // for ESP01
+//#define LED_DATA_PIN               D2  // for Wemos D1 Mini
+#define LED_DATA_PIN               2  // for ESP-01S with WS2812B adapter
 #define LED_TYPE                   WS2812B
 #define COLOR_ORDER                GRB
 #define EFFECT_BRIGHTNESS          96
 #define EFFECT_FRAMES_PER_SECOND   30
 
-//#define BUTTON_PIN D3                         // Pin where the button is connected
-#define BUTTON_PIN 3                          // // for ESP01 - RX pin on ESP01 - Pin where the button is connected
+//#define BUTTON_PIN                 D3  // Pin where the button is connected on Wemos D1 Mini
+#define BUTTON_PIN                 3  // for ESP-01S - RX pin on ESP-01S - Pin where the button is connected
 
 // MQTT API - comment out, if you do not need it
 #define USE_MQTT
 
 #ifdef USE_MQTT
   #include <PubSubClient.h>                     // https://github.com/knolleary/pubsubclient
-  #define MQTT_SERVER          "192.168.1.201"
-  #define MQTT_USERNAME        "user"
-  #define MQTT_PASSWORD        "password"
-  #define MQTT_TOPIC           ESP_HOSTNAME
-  #define MQTT_CMD_TOPIC       MQTT_TOPIC "/cmd"
-  #define MQTT_RSPN_TOPIC      MQTT_TOPIC "/rspn"
-  #define MQTT_LAST_WILL_TOPIC MQTT_TOPIC "/live"
-  #define MQTT_LAST_WILL       "OFF"
+  #define MQTT_SERVER             "192.168.1.100"
+  #define MQTT_USERNAME           "username"
+  #define MQTT_PASSWORD           "password"
+  #define MQTT_TOPIC              ESP_HOSTNAME
+  #define MQTT_CMD_TOPIC          MQTT_TOPIC "/cmd"
+  #define MQTT_RSPN_TOPIC         MQTT_TOPIC "/rspn"
+  #define MQTT_LAST_WILL_TOPIC    MQTT_TOPIC "/live"
+  #define MQTT_LAST_WILL          "OFF"
   #define MQTT_MAX_PAYLOAD_LENGTH 15
 #endif
 
@@ -169,20 +169,23 @@ void cylon();
 void sparkle();
 void snowsparkle();
 void meteor();
+void theatre();
+
 effectType effects[] = {
   {"rainbow",   rainbow,            EFFECT_FRAMES_PER_SECOND * 5},
   {"rainbowGl", rainbowWithGlitter, EFFECT_FRAMES_PER_SECOND * 5},
   {"confetti",  confetti,           EFFECT_FRAMES_PER_SECOND * 5},
   {"sinelon",   sinelon,            EFFECT_FRAMES_PER_SECOND * 5},
   {"bpm",       bpm,                EFFECT_FRAMES_PER_SECOND * 5},
-  {"juggle",    juggle,             EFFECT_FRAMES_PER_SECOND},  
+  {"juggle",    juggle,             EFFECT_FRAMES_PER_SECOND},
   {"fire2012",  fire2012,           EFFECT_FRAMES_PER_SECOND},
   {"cylon",     cylon,              EFFECT_FRAMES_PER_SECOND * 4},
   {"sparkle",   sparkle,            EFFECT_FRAMES_PER_SECOND},
   {"snowspark", snowsparkle,        EFFECT_FRAMES_PER_SECOND},
-  {"meteor",    meteor,             EFFECT_FRAMES_PER_SECOND * 2}};
-int16_t actualFrame;
+  {"meteor",    meteor,             EFFECT_FRAMES_PER_SECOND * 2},
+  {"theatre",   theatre,            EFFECT_FRAMES_PER_SECOND/2}};
 
+int16_t actualFrame;                              // contains the number of actual Frame for chosen effect
 npControllerEEPROMType    npControllerEEPROM;     // contains all saved colors, CRC32 and other informations
 colorType                 *colors;                // saved colors the application operates with
 npControllerSettingType   *npControllerSetting;   // Will containt info about active color/effect, number of saved colors...
@@ -215,7 +218,6 @@ void allResponse () {
   responseJSON["rsT"] = "all";
   responseJSON["rsE"] = "";
   strOutput = "";
-  //yield();
   JsonArray rsV = responseJSON.createNestedArray("rsV");
   for (uint8_t i = 0; i < npControllerSetting->colorCount; i++) {
     JsonObject colorElem = rsV.createNestedObject();
@@ -225,7 +227,6 @@ void allResponse () {
     colorElem["brtns"] = colors[i].brtns;
   }
   serializeJson(responseJSON, strOutput);
-  //yield();
 }
 
 void colorResponse (uint8_t colorResult) {
@@ -235,7 +236,6 @@ void colorResponse (uint8_t colorResult) {
   responseJSON["rsT"] = "color";
   responseJSON["rsE"] = "";
   strOutput = "";
-  //yield();
   if (colorResult != 1) {
     responseJSON["rsE"] = "Wrong format of color/brightness.";
   } else {
@@ -247,7 +247,6 @@ void colorResponse (uint8_t colorResult) {
     rsV["brtns"] = colors[colorIndex].brtns;
   }
   serializeJson(responseJSON, strOutput);
-  //yield();
 }
 
 void offResponse () {
@@ -257,10 +256,8 @@ void offResponse () {
   responseJSON["rsT"] = "off";
   responseJSON["rsE"] = "";
   strOutput = "";
-  //yield();
   responseJSON["rsV"] = 1;
   serializeJson(responseJSON, strOutput);
-  //yield();
 }
 
 void effectResponse (uint8_t effectResult) {
@@ -270,14 +267,12 @@ void effectResponse (uint8_t effectResult) {
   responseJSON["rsT"] = "effect";
   responseJSON["rsE"] = "";
   strOutput = "";
-  //yield();
   if (effectResult != 1) {
     responseJSON["rsE"] = "Wrong name of effect.";
   } else {
     responseJSON["rsV"] = effects[npControllerSetting->activeEffect].effectName;
   }
   serializeJson(responseJSON, strOutput);
-  //yield();
 }
 
 void saveResponse (uint8_t saveResult) {
@@ -287,7 +282,6 @@ void saveResponse (uint8_t saveResult) {
   responseJSON["rsT"] = "save";
   responseJSON["rsE"] = "";
   strOutput = "";
-  //yield();
   if (saveResult != 1) {
     if (saveResult == 0) responseJSON["rsE"] = "Could not save the new color to EEPROM.";
     else if (saveResult == 2) responseJSON["rsE"] = "Wrong format for color/brightness.";
@@ -302,7 +296,6 @@ void saveResponse (uint8_t saveResult) {
     rsV["brtns"] = colors[colorIndex].brtns;
   }
   serializeJson(responseJSON, strOutput);
-  //yield();
 }
 
 void deleteResponse (uint8_t deleteResult, char rgbHex[], uint8_t brightness) {
@@ -312,7 +305,6 @@ void deleteResponse (uint8_t deleteResult, char rgbHex[], uint8_t brightness) {
   responseJSON["rsT"] = "delete";
   responseJSON["rsE"] = "";
   strOutput = "";
-  //yield();
   if (deleteResult != 1) {
     if (deleteResult == 0) responseJSON["rsE"] = "Error during saving to EEPROM.";
     else if (deleteResult == 2) responseJSON["rsE"] = "Wrong format for color/brightness.";
@@ -323,7 +315,6 @@ void deleteResponse (uint8_t deleteResult, char rgbHex[], uint8_t brightness) {
     rsV["brtns"] = brightness;
   }
   serializeJson(responseJSON, strOutput);
-  //yield();
 }
 
 
@@ -417,9 +408,9 @@ uint8_t deleteRequest(char *rgbHex, uint8_t brightness) {
 
     if (npControllerSetting->activeColor == colorIndex) npControllerSetting->activeColor = 0;
     else if (npControllerSetting->activeColor > colorIndex) npControllerSetting->activeColor--;
-    
+
     npControllerSetting->colorCount--;
-    
+
     return saveEEPROM();   // 0 - error during saving, 1 - OK
   }
   else {
@@ -821,7 +812,6 @@ void setup() {
       // 200 OK
       // 204 No Content
       // 400 Bad Request
-      //yield();
 
       if (server.hasArg("all") && (server.arg("all").toInt() == 1)) {
         // ###########################
@@ -830,7 +820,6 @@ void setup() {
         Serial.println(F("Received *all* GET request"));
         //{"rsT":"all", "rsE":"", "rsV":[{"rgb":"aabbcc","brtns":50},{"rgb":"994422","brtns":100}]}
         allResponse();
-        //if (npControllerSetting->colorCount == 0) response_code = 204;
         Serial.printf("*all* GET response: %s\n", strOutput.c_str());
         server.send(response_code, "application/json", strOutput);
 
@@ -847,7 +836,6 @@ void setup() {
 
         uint8_t colorResult = colorRequest(rgbHex, brightness);
         colorResponse(colorResult);
-        //if (colorResult != 1) response_code = 204;
 
         Serial.printf("*color* GET response: %s\n", strOutput.c_str());
         server.send(response_code, "application/json", strOutput);
@@ -877,7 +865,6 @@ void setup() {
 
         uint8_t effectResult = effectRequest(effectName);
         effectResponse(effectResult);
-        //if (effectResult != 1) response_code = 204;
 
         Serial.printf("*effect* GET response: %s\n", strOutput.c_str());
         server.send(response_code, "application/json", strOutput);
@@ -896,7 +883,6 @@ void setup() {
       // 200 OK
       // 204 No Content
       // 400 Bad Request
-      //yield();
 
       if (server.hasHeader("save") && (server.header("save").toInt() == 1) && server.hasHeader("color") && (server.header("color") != NULL) && server.hasHeader("brightness") && (server.header("brightness") != NULL)) {
        // ###########################
@@ -911,7 +897,6 @@ void setup() {
 
        uint8_t saveResult = saveRequest(rgbHex, brightness);
        saveResponse(saveResult);
-       //if (saveResult != 1) response_code = 204;
 
        Serial.printf("*save* POST response: %s\n", strOutput.c_str());
        server.send(response_code, "application/json", strOutput);
@@ -929,7 +914,6 @@ void setup() {
 
        uint8_t deleteResult = deleteRequest(rgbHex, brightness);
        deleteResponse(deleteResult, rgbHex, brightness);
-       //if (deleteResult != 1) response_code = 204;
 
        Serial.printf("*delete* POST response: %s\n", strOutput.c_str());
        server.send(response_code, "application/json", strOutput);
@@ -972,7 +956,6 @@ void setup() {
 void loop() {
   // Handle HTTP communication
   server.handleClient();
-  //yield();
 
 #ifdef USE_MQTT
   if (!mqtt_client.connected()) {
@@ -1010,10 +993,10 @@ void loop() {
       }
 
       if ((lastNeopixelRefresh + (1000/EFFECT_FRAMES_PER_SECOND)) <= millis()) {  // it is time for new frame
-        // Call the current pattern function once, updating the 'leds' array        
-        
+        // Call the current pattern function once, updating the 'leds' array
+
         (activeEffect->effectFunction)();
-        
+
         actualFrame++;
         if (actualFrame >= activeEffect->effectFrames) {
           actualFrame = 0;
@@ -1037,15 +1020,13 @@ void loop() {
   if (changeNeopixel) {
     changeNeopixel = 0;
   }
-
-  //yield();
 }
 
 
 
 void rainbow() {
-  uint8_t effectIndex = npControllerSetting->activeEffect;  
-  uint8_t hue = map(actualFrame, 0, effects[effectIndex].effectFrames -1, 0, 255);  
+  uint8_t effectIndex = npControllerSetting->activeEffect;
+  uint8_t hue = map(actualFrame, 0, effects[effectIndex].effectFrames -1, 0, 255);
   // FastLED's built-in rainbow generator
   fill_rainbow( leds, NUM_LEDS, hue, 7);
 }
@@ -1064,9 +1045,9 @@ void addGlitter( fract8 chanceOfGlitter)
 }
 
 void confetti() {
-  uint8_t effectIndex = npControllerSetting->activeEffect;  
-  uint8_t hue = map(actualFrame, 0, effects[effectIndex].effectFrames -1, 0, 255);  
-  
+  uint8_t effectIndex = npControllerSetting->activeEffect;
+  uint8_t hue = map(actualFrame, 0, effects[effectIndex].effectFrames -1, 0, 255);
+
   // random colored speckles that blink in and fade smoothly
   fadeToBlackBy( leds, NUM_LEDS, 10);
   int pos = random16(NUM_LEDS);
@@ -1074,9 +1055,9 @@ void confetti() {
 }
 
 void sinelon() {
-  uint8_t effectIndex = npControllerSetting->activeEffect;  
-  uint8_t hue = map(actualFrame, 0, effects[effectIndex].effectFrames -1, 0, 255);  
-  
+  uint8_t effectIndex = npControllerSetting->activeEffect;
+  uint8_t hue = map(actualFrame, 0, effects[effectIndex].effectFrames -1, 0, 255);
+
   // a colored dot sweeping back and forth, with fading trails
   fadeToBlackBy( leds, NUM_LEDS, 20);
   // Beat generators which return sine waves in a specified number of Beats Per Minute.
@@ -1090,9 +1071,9 @@ void sinelon() {
 }
 
 void bpm() {
-  uint8_t effectIndex = npControllerSetting->activeEffect;  
-  uint8_t hue = map(actualFrame, 0, effects[effectIndex].effectFrames -1, 0, 255);  
-  
+  uint8_t effectIndex = npControllerSetting->activeEffect;
+  uint8_t hue = map(actualFrame, 0, effects[effectIndex].effectFrames -1, 0, 255);
+
   // colored stripes pulsing at a defined Beats-Per-Minute (BPM)
   uint8_t BeatsPerMinute = 62;
   CRGBPalette16 palette = PartyColors_p;
@@ -1114,10 +1095,10 @@ void juggle() {
 
 // Fire2012 by Mark Kriegsman, July 2012
 // as part of "Five Elements" shown here: http://youtu.be/knWiGsmgycY
-//// 
+////
 // This basic one-dimensional 'fire' simulation works roughly as follows:
 // There's a underlying array of 'heat' cells, that model the temperature
-// at each point along the line.  Every cycle through the simulation, 
+// at each point along the line.  Every cycle through the simulation,
 // four steps are performed:
 //  1) All cells cool down a little bit, losing heat to the air
 //  2) The heat from each cell drifts 'up' and diffuses a little
@@ -1128,7 +1109,7 @@ void juggle() {
 // Temperature is in arbitrary units from 0 (cold black) to 255 (white hot).
 //
 // This simulation scales it self a bit depending on NUM_LEDS; it should look
-// "OK" on anywhere from 20 to 100 LEDs without too much tweaking. 
+// "OK" on anywhere from 20 to 100 LEDs without too much tweaking.
 //
 // I recommend running this simulation at anywhere from 30-100 frames per second,
 // meaning an interframe delay of about 10-35 milliseconds.
@@ -1142,7 +1123,7 @@ void juggle() {
 //
 // COOLING: How much does the air cool as it rises?
 // Less cooling = taller flames.  More cooling = shorter flames.
-// Default 50, suggested range 20-100 
+// Default 50, suggested range 20-100
 #define COOLING  55
 
 // SPARKING: What chance (out of 255) is there that a new spark will be lit?
@@ -1159,12 +1140,12 @@ void fire2012() {
     for( int i = 0; i < NUM_LEDS; i++) {
       heat[i] = qsub8( heat[i],  random8(0, ((COOLING * 10) / NUM_LEDS) + 2));
     }
-  
+
     // Step 2.  Heat from each cell drifts 'up' and diffuses a little
     for( int k= NUM_LEDS - 1; k >= 2; k--) {
       heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2] ) / 3;
     }
-    
+
     // Step 3.  Randomly ignite new 'sparks' of heat near the bottom
     if( random8() < SPARKING ) {
       int y = random8(7);
@@ -1181,31 +1162,31 @@ void fire2012() {
 }
 
 void cylon(){
-  CRGB color = CRGB(0xff0000); 
+  CRGB color = CRGB(0xff0000);
   uint8_t EyeSize = 2;
   uint8_t direction = true;
   uint8_t step_;
-  
-  uint8_t effectIndex = npControllerSetting->activeEffect;  
-  
+
+  uint8_t effectIndex = npControllerSetting->activeEffect;
+
   if (actualFrame >= (effects[effectIndex].effectFrames/2)) {
     direction = false;
-    step_ = map(actualFrame, effects[effectIndex].effectFrames/2, effects[effectIndex].effectFrames -1, 0, NUM_LEDS - EyeSize);  
+    step_ = map(actualFrame, effects[effectIndex].effectFrames/2, effects[effectIndex].effectFrames -1, 0, NUM_LEDS - EyeSize);
   } else {
-    step_ = map(actualFrame, 0, (effects[effectIndex].effectFrames/2)-1, 0, NUM_LEDS - EyeSize);  
+    step_ = map(actualFrame, 0, (effects[effectIndex].effectFrames/2)-1, 0, NUM_LEDS - EyeSize);
   }
-   
+
   if (direction && (step_ < NUM_LEDS - EyeSize)) leds[step_ + 2] = color/(uint8_t)5;
   else if (step_ > 2) leds[NUM_LEDS - 1 - step_ - 2] = color/(uint8_t)5;
-   
+
   fadeToBlackBy( leds,NUM_LEDS, 96);
-   
+
   if (direction) for (uint8_t i = 0; i < EyeSize; i++) leds[step_ + i] = color;
-  else for (uint8_t i = 0; i < EyeSize; i++) leds[NUM_LEDS - 1 - step_ - i] = color;   
+  else for (uint8_t i = 0; i < EyeSize; i++) leds[NUM_LEDS - 1 - step_ - i] = color;
 }
 
 void sparkle() {
-  CRGB color = CRGB(0x101010);   
+  CRGB color = CRGB(0x101010);
   fadeToBlackBy( leds,NUM_LEDS, 64);
   if (random8() < 60) leds[random8(NUM_LEDS)] = color;
 }
@@ -1224,12 +1205,12 @@ void meteor() {
   CRGB colorWhite = CRGB(0xffffff);
   uint8_t meteorSize = 3;
   uint8_t meteorTrailDecay = 128;
-  
+
   if (fall < 248) {
     fall = random8();
     FastLED.clear();
   } else {
-    uint8_t effectIndex = npControllerSetting->activeEffect;  
+    uint8_t effectIndex = npControllerSetting->activeEffect;
     int8_t step_ = map(actualFrame, 0, effects[effectIndex].effectFrames -1, -NUM_LEDS, NUM_LEDS);
 
     // fade brightness all LEDs one step
@@ -1238,13 +1219,28 @@ void meteor() {
         leds[j].fadeToBlackBy( meteorTrailDecay );
       }
     }
-    
+
     // draw meteor
     for(int j = 0; j < meteorSize; j++) {
       if( (( j + step_ + NUM_LEDS/4) >= 0) && ( ( j + step_ + NUM_LEDS/4) < NUM_LEDS) ) {
         leds[j + step_ + NUM_LEDS/4] = colorWhite;
-      } 
-    }  
+      }
+    }
     if (step_ == (NUM_LEDS - 1)) fall = 0;
+  }
+}
+
+void theatre() {
+  uint8_t effectIndex = npControllerSetting->activeEffect;
+  uint8_t redWindow = 3;
+  uint8_t blackWindow = 2;
+
+  uint8_t step_ = map(actualFrame, 0, effects[effectIndex].effectFrames -1, 0, (redWindow+blackWindow)*10-1);
+  step_ = step_/10;
+
+  FastLED.clear();
+  for (int8_t i = -redWindow-blackWindow; i < (NUM_LEDS+redWindow); i += (redWindow+blackWindow)) {
+    int8_t index = i + step_;
+    for (int8_t j = 0; j < redWindow; j++) if ( ((index + j)>=0) && ((index + j)< NUM_LEDS-1)) leds[index + j] = CRGB::Red;
   }
 }
